@@ -1,0 +1,793 @@
+openapi: 3.0.3
+info:
+  title: Kisii University Library Management System API
+  version: 1.0.0
+  description: >
+    Complete OpenAPI 3.0.3 specification for the COMP 330 semester project[cite: 1].
+    Covers core resources, external integrations, and AI endpoints[cite: 3, 4].
+
+servers:
+  - url: https://api.library.kisiiuni.ac.ke/v1
+    description: Production Server
+  - url: http://localhost:5000/v1
+    description: Local Development Server
+
+paths:
+  # ==========================================
+  # BOOKS & CATALOG (Sub-Teams B1, F1, D1)
+  # ==========================================
+  /books:
+    get:
+      summary: List and search library books
+      tags: [Books]
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+          description: Keyword search across title, author, or ISBN
+        - name: categoryId
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: A paginated list of books
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Book'
+    post:
+      summary: Add a new book to the catalog
+      tags: [Books]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookInput'
+      responses:
+        '201':
+          description: Book created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+
+  /books/{id}:
+    get:
+      summary: Get details of a specific book
+      tags: [Books]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Book details returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Update a book's information
+      tags: [Books]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookInput'
+      responses:
+        '200':
+          description: Book updated successfully
+    delete:
+      summary: Delete a book entry
+      tags: [Books]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Book successfully deleted
+
+  /categories:
+    get:
+      summary: List all book categories
+      tags: [Categories]
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+    post:
+      summary: Create a new category
+      tags: [Categories]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        '201':
+          description: Category created successfully
+
+  /authors:
+    get:
+      summary: List all authors
+      tags: [Authors]
+      responses:
+        '200':
+          description: List of authors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Author'
+    post:
+      summary: Add an author profile
+      tags: [Authors]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorInput'
+      responses:
+        '201':
+          description: Author profile created
+
+  # ==========================================
+  # MEMBERS (Sub-Teams B2, F2, D2)
+  # ==========================================
+  /members:
+    get:
+      summary: List registered library members
+      tags: [Members]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Member'
+    post:
+      summary: Register a new member
+      tags: [Members]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberInput'
+      responses:
+        '201':
+          description: Member registered successfully
+
+  /members/{id}:
+    get:
+      summary: Get member profile
+      tags: [Members]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Member data retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+    put:
+      summary: Update member profile
+      tags: [Members]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberInput'
+      responses:
+        '200':
+          description: Profile updated
+
+  /members/{id}/deactivate:
+    patch:
+      summary: Deactivate a member's account
+      tags: [Members]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Account deactivated successfully
+
+  # ==========================================
+  # LOANS & RESERVATIONS (Sub-Teams B3, B4, D3)
+  # ==========================================
+  /loans:
+    get:
+      summary: List borrowing records
+      tags: [Loans]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: memberId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, RETURNED, OVERDUE]
+      responses:
+        '200':
+          description: Loan records list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Loan'
+    post:
+      summary: Borrow a book
+      tags: [Loans]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanInput'
+      responses:
+        '201':
+          description: Book borrowed successfully
+
+  /loans/{id}/return:
+    post:
+      summary: Return a borrowed book
+      tags: [Loans]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Book returned successfully
+
+  /loans/{id}/renew:
+    post:
+      summary: Renew an existing loan
+      tags: [Loans]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Loan due date extended
+
+  /reservations:
+    get:
+      summary: List reservations
+      tags: [Reservations]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Queue of reservations
+    post:
+      summary: Reserve a book
+      tags: [Reservations]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationInput'
+      responses:
+        '201':
+          description: Book reserved
+
+  /reservations/{id}/cancel:
+    post:
+      summary: Cancel a reservation
+      tags: [Reservations]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reservation cancelled
+
+  # ==========================================
+  # FINES & PAYMENTS (Sub-Team B5)
+  # ==========================================
+  /fines:
+    get:
+      summary: List fines
+      tags: [Fines]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Fine records
+    post:
+      summary: Calculate fine amount
+      tags: [Fines]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                loanId:
+                  type: string
+      responses:
+        '200':
+          description: Fine details calculated
+
+  # ==========================================
+  # AUTHENTICATION (Sub-Team B6)
+  # ==========================================
+  /auth/login:
+    post:
+      summary: Authenticate member/admin and issue JWT
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [regNo, password]
+              properties:
+                regNo:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Successfully authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  expiresIn:
+                    type: integer
+
+  # ==========================================
+  # AI FEATURES (Sub-Teams B7, F4, F5, D4)
+  # ==========================================
+  /ai/recommendations/{memberId}:
+    get:
+      summary: Personalized book recommendations based on history
+      tags: [AI Features]
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Recommended books list
+
+  /ai/search:
+    get:
+      summary: Smart natural language search
+      tags: [AI Features]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Semantic search results
+
+  /ai/forecast/demand:
+    get:
+      summary: Predict high-demand books for inventory planning
+      tags: [AI Features]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Forecasting metrics
+
+  /ai/categorize:
+    post:
+      summary: Auto-suggest categories for new books
+      tags: [AI Features]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [summary]
+              properties:
+                summary:
+                  type: string
+      responses:
+        '200':
+          description: Category suggestions
+
+  /ai/chat:
+    post:
+      summary: Conversational AI assistant query endpoint
+      tags: [AI Features]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                sessionId:
+                  type: string
+      responses:
+        '200':
+          description: Assistant response
+
+  # ==========================================
+  # EXTERNAL INTEGRATIONS (Sub-Teams B8, B9, D5)
+  # ==========================================
+  /external/students/{regNo}/verify:
+    get:
+      summary: Verify student enrollment in Kisii University Registry
+      tags: [External Integrations]
+      parameters:
+        - name: regNo
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Verification status from university registry
+
+  /payments/mpesa/initiate:
+    post:
+      summary: Initiate M-Pesa STK push fine payment
+      tags: [External Integrations]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MpesaPaymentInput'
+      responses:
+        '200':
+          description: M-Pesa push sent successfully
+
+  /notifications/email:
+    post:
+      summary: Dispatch email notifications or reminders
+      tags: [Notifications]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recipient, subject, body]
+              properties:
+                recipient:
+                  type: string
+                subject:
+                  type: string
+                body:
+                  type: string
+      responses:
+        '200':
+          description: Email queued for sending
+
+  /notifications/sms:
+    post:
+      summary: Dispatch overdue SMS alerts
+      tags: [Notifications]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneNumber, message]
+              properties:
+                phoneNumber:
+                  type: string
+                message:
+                  type: string
+      responses:
+        '200':
+          description: SMS queued
+
+  /external/isbn/{isbn}:
+    get:
+      summary: Fetch and auto-fill book details via external ISBN API
+      tags: [External Integrations]
+      parameters:
+        - name: isbn
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: External metadata fetched
+
+# ==========================================
+# COMPONENTS & SCHEMAS
+# ==========================================
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    NotFound:
+      description: The requested resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    Book:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        authorId:
+          type: string
+        categoryId:
+          type: string
+        isbn:
+          type: string
+        availableCopies:
+          type: integer
+        totalCopies:
+          type: integer
+
+    BookInput:
+      type: object
+      required: [title, authorId, categoryId, isbn, totalCopies]
+      properties:
+        title:
+          type: string
+        authorId:
+          type: string
+        categoryId:
+          type: string
+        isbn:
+          type: string
+        totalCopies:
+          type: integer
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+
+    CategoryInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+
+    Author:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+
+    AuthorInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+
+    Member:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        regNo:
+          type: string
+        email:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, DEACTIVATED]
+
+    MemberInput:
+      type: object
+      required: [name, regNo, email]
+      properties:
+        name:
+          type: string
+        regNo:
+          type: string
+        email:
+          type: string
+
+    Loan:
+      type: object
+      properties:
+        id:
+          type: string
+        memberId:
+          type: string
+        bookId:
+          type: string
+        issuedDate:
+          type: string
+          format: date-time
+        dueDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [ACTIVE, RETURNED, OVERDUE]
+
+    LoanInput:
+      type: object
+      required: [memberId, bookId]
+      properties:
+        memberId:
+          type: string
+        bookId:
+          type: string
+
+    ReservationInput:
+      type: object
+      required: [memberId, bookId]
+      properties:
+        memberId:
+          type: string
+        bookId:
+          type: string
+
+    MpesaPaymentInput:
+      type: object
+      required: [phoneNumber, amount, fineId]
+      properties:
+        phoneNumber:
+          type: string
+          example: "254712345678"
+        amount:
+          type: number
+          example: 100
+        fineId:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
