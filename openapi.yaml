@@ -9,7 +9,7 @@ info:
 servers:
   - url: https://api.library.kisiiuni.ac.ke/v1
     description: Production Server
-  - url: http://localhost:5000/v1
+  - url: http://127.0.0.1:4000/v1
     description: Local Development Server
 
 paths:
