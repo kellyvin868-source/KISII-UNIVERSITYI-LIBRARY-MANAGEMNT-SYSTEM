@@ -7,6 +7,7 @@ const connectToDB=async()=>{
         
     } catch (error) {
         console.error("MOngoDB connection failed error",error);
+        process.exit(1);
         
     }
 }
