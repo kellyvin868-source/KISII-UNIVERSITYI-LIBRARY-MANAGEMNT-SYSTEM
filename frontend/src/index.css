@@ -1,0 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-navy-900: #102a43;
+  --color-navy-800: #183b5b;
+  --color-gold-300: #e7c56a;
+  --color-gold-400: #d4a017;
+  --font-sans: "DM Sans", "Segoe UI", sans-serif;
+  --font-serif: "Playfair Display", Georgia, serif;
+}
+
+* { box-sizing: border-box; }
+body { min-width: 320px; min-height: 100vh; margin: 0; font-family: var(--font-sans); }
+button, input, select, textarea { font: inherit; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #e7c56a; outline-offset: 3px; }
+
+.btn { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: .5rem; border-radius: .5rem; font-size: .75rem; font-weight: 600; transition: background-color .15s, color .15s, border-color .15s; cursor: pointer; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn-primary { background: #102a43; color: white; }
+.btn-primary:hover:not(:disabled) { background: #183b5b; }
+.btn-outline { border: 1px solid #cbd5e1; background: white; color: #334155; }
+.btn-outline:hover:not(:disabled) { border-color: #2563eb; color: #1d4ed8; }
+.form-control { width: 100%; min-height: 40px; border: 1px solid #cbd5e1; border-radius: .5rem; background: white; padding: .55rem .75rem; color: #1e293b; font-size: .75rem; }
+.form-control:focus { border-color: #2563eb; outline: 2px solid #bfdbfe; outline-offset: 1px; }
+.nav-link { display: inline-flex; align-items: center; gap: .5rem; border-radius: .5rem; padding: .65rem .75rem; color: #475569; font-size: .75rem; font-weight: 500; text-decoration: none; }
+.nav-link:hover, .nav-active { background: #eff6ff; color: #1d4ed8; }

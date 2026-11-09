@@ -1,0 +1,10 @@
+**/node_modules/
+**/coverage/
+backend/.env
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+frontend/dist/
+*.log
+*.dump
+*.archive
