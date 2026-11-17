@@ -1,0 +1,1505 @@
+openapi: 3.0.3
+info:
+  title: Kisii University Library Management System API
+  version: 1.0.0
+  description: >
+    API contract for the Kisii University Library Management System.
+    Protected endpoints accept the session cookie or a Bearer token.
+
+servers:
+  - url: http://127.0.0.1:4000/v1
+    description: Local API
+  - url: http://127.0.0.1:4010
+    description: Prism contract mock (the mock server omits the /v1 prefix)
+
+paths:
+  # ==========================================
+  # BOOKS & CATALOG (Sub-Teams B1, F1, D1)
+  # ==========================================
+  /books:
+    get:
+      summary: List and search library books
+      tags: [Books]
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: Keyword search across title, author, category, description, or ISBN
+        - name: categoryId
+          in: query
+          schema:
+            type: string
+        - name: authorId
+          in: query
+          schema:
+            type: string
+        - name: isbn
+          in: query
+          schema:
+            type: string
+            maxLength: 20
+        - name: available
+          in: query
+          schema:
+            type: boolean
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [relevance, title, title_desc, created_asc]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: A paginated list of books
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Book'
+    post:
+      summary: Add a new book to the catalog
+      tags: [Books]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookInput'
+      responses:
+        '201':
+          description: Book created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+
+  /books/{id}:
+    get:
+      summary: Get details of a specific book
+      tags: [Books]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Book details returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Update a book's information
+      tags: [Books]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookInput'
+      responses:
+        '200':
+          description: Book updated successfully
+    delete:
+      summary: Archive a book entry
+      description: Archives the title without deleting circulation history.
+      tags: [Books]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Book successfully deleted
+
+  /books/{id}/copies:
+    get:
+      summary: List physical copies for a catalog title
+      tags: [Books]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Physical copy records and their statuses
+    post:
+      summary: Add a physical copy
+      tags: [Books]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                barcode:
+                  type: string
+                  maxLength: 100
+      responses:
+        '201':
+          description: Physical copy created
+        '403':
+          description: Staff role required
+
+  /books/copies/{copyId}:
+    patch:
+      summary: Update a physical copy status
+      tags: [Books]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: copyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [AVAILABLE, DAMAGED, LOST, WITHDRAWN]
+      responses:
+        '200':
+          description: Physical copy updated
+
+  /categories:
+    get:
+      summary: List all book categories
+      tags: [Categories]
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+    post:
+      summary: Create a new category
+      tags: [Categories]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        '201':
+          description: Category created successfully
+
+  /categories/{id}:
+    get:
+      summary: Get a book category
+      tags: [Categories]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Category details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /authors:
+    get:
+      summary: List all authors
+      tags: [Authors]
+      responses:
+        '200':
+          description: List of authors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Author'
+    post:
+      summary: Add an author profile
+      tags: [Authors]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorInput'
+      responses:
+        '201':
+          description: Author profile created
+
+  /authors/{id}:
+    get:
+      summary: Get an author profile
+      tags: [Authors]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Author details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Author'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==========================================
+  # MEMBERS (Sub-Teams B2, F2, D2)
+  # ==========================================
+  /members:
+    get:
+      summary: List registered library members
+      tags: [Members]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: List of members
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Member'
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+    post:
+      summary: Register a member as staff
+      tags: [Members]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberRegistrationInput'
+      responses:
+        '201':
+          description: Member profile created
+        '409':
+          description: Email address or registration number is already in use
+        '403':
+          description: Staff role required
+
+  /members/{id}:
+    get:
+      summary: Get member profile
+      tags: [Members]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Member data retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+    put:
+      summary: Update member profile
+      tags: [Members]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberUpdateInput'
+      responses:
+        '200':
+          description: Profile updated
+
+  /members/{id}/deactivate:
+    patch:
+      summary: Deactivate a member's account
+      tags: [Members]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Account deactivated successfully
+
+  /members/{id}/loans:
+    get:
+      summary: Retrieve a member's borrowing history
+      tags: [Members]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Member loan history
+
+  # ==========================================
+  # LOANS & RESERVATIONS (Sub-Teams B3, B4, D3)
+  # ==========================================
+  /loans:
+    get:
+      summary: List borrowing records
+      tags: [Loans]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: memberId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, RETURNED, OVERDUE]
+      responses:
+        '200':
+          description: Loan records list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Loan'
+    post:
+      summary: Borrow a book
+      tags: [Loans]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanInput'
+      responses:
+        '201':
+          description: Book borrowed successfully
+
+  /loans/{id}:
+    get:
+      summary: Get a loan record
+      tags: [Loans]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Loan details for the member or authorized staff
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Loan'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /loans/{id}/return:
+    post:
+      summary: Return a borrowed book
+      tags: [Loans]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Book returned successfully
+
+  /loans/{id}/renew:
+    post:
+      summary: Renew an existing loan
+      tags: [Loans]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Loan due date extended
+
+  /reservations:
+    get:
+      summary: List reservations
+      tags: [Reservations]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Queue of reservations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Reservation'
+    post:
+      summary: Reserve a book
+      tags: [Reservations]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationInput'
+      responses:
+        '201':
+          description: Book reserved
+
+  /reservations/{id}:
+    get:
+      summary: Get a reservation record
+      tags: [Reservations]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reservation details for the member or authorized staff
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /reservations/{id}/cancel:
+    post:
+      summary: Cancel a reservation
+      tags: [Reservations]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reservation cancelled
+
+  # ==========================================
+  # FINES & PAYMENTS (Sub-Team B5)
+  # ==========================================
+  /fines:
+    get:
+      summary: List fines
+      tags: [Fines]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Fine records
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Fine'
+    post:
+      summary: Calculate fine amount
+      tags: [Fines]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                loanId:
+                  type: string
+      responses:
+        '200':
+          description: Fine details calculated
+
+  /fines/{id}:
+    get:
+      summary: Get a fine record
+      tags: [Fines]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Fine details for the member or authorized staff
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==========================================
+  # AUTHENTICATION (Sub-Team B6)
+  # ==========================================
+  /auth/register:
+    post:
+      summary: Register a library member account
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fname, lname, email, password]
+              properties:
+                fname:
+                  type: string
+                lname:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 72
+                  description: Maximum 72 UTF-8 bytes.
+                phone:
+                  type: string
+      responses:
+        '201':
+          description: Member registered and authenticated; sets an HTTP-only token cookie
+          headers:
+            Set-Cookie:
+              description: HTTP-only JWT cookie; secure in production
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, message]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+        '400':
+          description: Invalid registration details
+        '409':
+          description: Email address is already registered
+        '503':
+          description: Authentication is not configured
+
+  /auth/login:
+    post:
+      summary: Authenticate a member and set an HTTP-only JWT cookie
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Successfully authenticated; sets an HTTP-only token cookie
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, message]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+          headers:
+            Set-Cookie:
+              description: HTTP-only JWT cookie; secure in production
+              schema:
+                type: string
+        '401':
+          description: Invalid email or password
+        '403':
+          description: Account is not active
+        '503':
+          description: Authentication is not configured
+
+  /auth/logout:
+    post:
+      summary: Revoke the current session and clear its cookie
+      tags: [Authentication]
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Session revoked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, message]
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '401':
+          description: Missing, expired, or revoked authentication token
+
+  /auth/me:
+    get:
+      summary: Retrieve the authenticated member profile
+      tags: [Authentication]
+      security:
+        - CookieAuth: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current member profile; password hash is never returned
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/CurrentMember'
+        '401':
+          description: Missing, expired, or revoked authentication token
+
+  # ==========================================
+  # AI FEATURES (Sub-Teams B7, F4, F5, D4)
+  # ==========================================
+  /ai/recommendations/{memberId}:
+    get:
+      summary: Personalized book recommendations based on history
+      tags: [AI Features]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Database-backed book recommendations
+
+  /ai/search:
+    get:
+      summary: Smart natural language search
+      tags: [AI Features]
+      description: >
+        Uses NVIDIA Nemotron through OpenRouter to extract catalog search terms,
+        then searches indexed book metadata in the library database. Results are
+        actual catalog records; the AI does not invent book entries.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 500
+      responses:
+        '200':
+          description: Matching catalog books and the generated search terms
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    required: [query, searchTerms, model, books]
+                    properties:
+                      query:
+                        type: string
+                      searchTerms:
+                        type: array
+                        items:
+                          type: string
+                      model:
+                        type: string
+                        example: nvidia/nemotron-3.5-lightning:free
+                      books:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Book'
+        '400':
+          description: Invalid search query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiError'
+        '502':
+          description: AI provider request failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiError'
+        '503':
+          description: AI provider is not configured or is rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiError'
+        '504':
+          description: AI provider request timed out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiError'
+
+  /ai/forecast/demand:
+    get:
+      summary: Predict high-demand books for inventory planning
+      tags: [AI Features]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Highest recent borrowing frequency, calculated from the last 180 days
+
+  /ai/categorize:
+    post:
+      summary: Auto-suggest categories for new books
+      tags: [AI Features]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+                  maxLength: 300
+                description:
+                  type: string
+                  maxLength: 5000
+                summary:
+                  type: string
+                  maxLength: 5000
+      responses:
+        '200':
+          description: Category suggestions
+
+  /ai/chat:
+    post:
+      summary: Conversational AI assistant query endpoint
+      tags: [AI Features]
+      description: >
+        Stateless, single-turn assistant using a free NVIDIA Nemotron model through OpenRouter.
+        No live catalog, member, loan, or fine records are supplied to the model.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                  minLength: 1
+                  maxLength: 4000
+                sessionId:
+                  type: string
+                  maxLength: 128
+                  description: Optional client correlation value; conversation history is not stored.
+      responses:
+        '200':
+          description: Assistant response
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    required: [reply, model]
+                    properties:
+                      reply:
+                        type: string
+                      model:
+                        type: string
+                        example: nvidia/nemotron-3.5-lightning:free
+                      sessionId:
+                        type: string
+                        description: Returned only when supplied in the request.
+        '400':
+          description: Invalid chat request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiError'
+        '502':
+          description: AI provider request failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiError'
+        '503':
+          description: AI provider is not configured or is rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiError'
+        '504':
+          description: AI provider request timed out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiError'
+
+  # ==========================================
+  # EXTERNAL INTEGRATIONS (Sub-Teams B8, B9, D5)
+  # ==========================================
+  /external/students/{regNo}/verify:
+    get:
+      summary: Verify student enrollment in Kisii University Registry
+      tags: [External Integrations]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: regNo
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Verification status from university registry
+
+  /payments/mpesa/initiate:
+    post:
+      summary: Initiate M-Pesa STK push fine payment
+      tags: [External Integrations]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MpesaPaymentInput'
+      responses:
+        '202':
+          description: STK push initiated; final status is asynchronous
+        '409':
+          description: Amount exceeds the outstanding fine balance
+
+  /payments/mpesa/callback:
+    post:
+      summary: Receive an M-Pesa payment result callback
+      description: Requires the callback token configured in the callback URL query string.
+      tags: [External Integrations]
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Callback processed or already processed
+        '401':
+          description: Callback token is invalid
+
+  /payments:
+    get:
+      summary: Retrieve payment history
+      tags: [External Integrations]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Payments available to the authenticated member
+
+  /notifications:
+    get:
+      summary: List recent notification records
+      tags: [Notifications]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Up to 100 newest notification records
+
+  /notifications/email:
+    post:
+      summary: Queue an email notification
+      tags: [Notifications]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recipient, subject, body]
+              properties:
+                recipient:
+                  type: string
+                subject:
+                  type: string
+                body:
+                  type: string
+      responses:
+        '202':
+          description: Email notification queued
+
+  /notifications/sms:
+    post:
+      summary: Queue an SMS notification
+      tags: [Notifications]
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneNumber, message]
+              properties:
+                phoneNumber:
+                  type: string
+                message:
+                  type: string
+      responses:
+        '202':
+          description: SMS notification queued
+
+  /external/isbn/{isbn}:
+    get:
+      summary: Fetch and auto-fill book details via external ISBN API
+      tags: [External Integrations]
+      parameters:
+        - name: isbn
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: External metadata fetched
+
+# ==========================================
+# COMPONENTS & SCHEMAS
+# ==========================================
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+
+  responses:
+    NotFound:
+      description: The requested resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: The authenticated member is not allowed to access this resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    Book:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        authorId:
+          type: string
+        authorName:
+          type: string
+        categoryId:
+          type: string
+        categoryName:
+          type: string
+        isbn:
+          type: string
+        description:
+          type: string
+        availableCopies:
+          type: integer
+        totalCopies:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum: [ACTIVE, ARCHIVED]
+
+    BookInput:
+      type: object
+      required: [title, authorId, categoryId, isbn, totalCopies]
+      properties:
+        title:
+          type: string
+        authorId:
+          type: string
+        categoryId:
+          type: string
+        isbn:
+          type: string
+        description:
+          type: string
+        totalCopies:
+          type: integer
+          minimum: 0
+
+    CurrentMember:
+      type: object
+      required: [id, fname, lname, email, role]
+      properties:
+        id:
+          type: string
+        fname:
+          type: string
+        lname:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [MEMBER, LIBRARIAN, ADMIN]
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+
+    CategoryInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+
+    Author:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+
+    AuthorInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+
+    Member:
+      type: object
+      properties:
+        id:
+          type: string
+        fname:
+          type: string
+        lname:
+          type: string
+        regNo:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        memberType:
+          type: string
+          enum: [STUDENT, STAFF]
+        enrollmentStatus:
+          type: string
+          enum: [UNVERIFIED, VERIFIED, INACTIVE]
+        role:
+          type: string
+          enum: [MEMBER, LIBRARIAN, ADMIN]
+        status:
+          type: string
+          enum: [ACTIVE, DEACTIVATED]
+
+    MemberRegistrationInput:
+      type: object
+      required: [fname, lname, email, password]
+      properties:
+        fname:
+          type: string
+        lname:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 72
+        phone:
+          type: string
+        regNo:
+          type: string
+
+    MemberUpdateInput:
+      type: object
+      properties:
+        fname:
+          type: string
+        lname:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        regNo:
+          type: string
+        memberType:
+          type: string
+          enum: [STUDENT, STAFF]
+        role:
+          type: string
+          enum: [MEMBER, LIBRARIAN, ADMIN]
+        status:
+          type: string
+          enum: [ACTIVE, DEACTIVATED]
+
+    Loan:
+      type: object
+      properties:
+        id:
+          type: string
+        memberId:
+          type: string
+        bookId:
+          type: string
+        issuedDate:
+          type: string
+          format: date-time
+        dueDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [ACTIVE, RETURNED, OVERDUE]
+
+    Reservation:
+      type: object
+      properties:
+        id:
+          type: string
+        memberId:
+          type: string
+        bookId:
+          type: string
+        copyId:
+          type: string
+        status:
+          type: string
+          enum: [WAITING, READY, FULFILLED, CANCELLED, EXPIRED]
+        queuePosition:
+          type: integer
+        readyAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+
+    Fine:
+      type: object
+      properties:
+        id:
+          type: string
+        memberId:
+          type: string
+        loanId:
+          type: string
+        amount:
+          type: number
+        paidAmount:
+          type: number
+        reason:
+          type: string
+          enum: [OVERDUE, DAMAGE, OTHER]
+        status:
+          type: string
+          enum: [OUTSTANDING, PARTIALLY_PAID, PAID]
+        description:
+          type: string
+
+    LoanInput:
+      type: object
+      required: [memberId, bookId]
+      properties:
+        memberId:
+          type: string
+        bookId:
+          type: string
+
+    ReservationInput:
+      type: object
+      required: [memberId, bookId]
+      properties:
+        memberId:
+          type: string
+        bookId:
+          type: string
+
+    MpesaPaymentInput:
+      type: object
+      required: [phoneNumber, amount, fineId]
+      properties:
+        phoneNumber:
+          type: string
+          example: "254712345678"
+        amount:
+          type: number
+          example: 100
+        fineId:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    AiError:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
