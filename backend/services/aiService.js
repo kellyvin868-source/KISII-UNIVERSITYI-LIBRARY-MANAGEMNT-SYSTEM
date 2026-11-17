@@ -26,7 +26,7 @@ class AiServiceError extends Error {
     }
 }
 
-const requestModel = async (messages, maxTokens = 512) => {
+const requestModel = async (messages, maxTokens = 1024) => {
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
         throw new AiServiceError('AI service is not configured. Set OPENROUTER_API_KEY.', 503);
@@ -47,7 +47,8 @@ const requestModel = async (messages, maxTokens = 512) => {
                 model: MODEL,
                 messages,
                 temperature: 0.2,
-                max_tokens: maxTokens
+                max_tokens: maxTokens,
+                reasoning: { effort: 'low' }
             }),
             signal: controller.signal
         });
@@ -74,8 +75,15 @@ const requestModel = async (messages, maxTokens = 512) => {
         throw new AiServiceError('The AI provider returned an invalid response.', 502);
     }
 
-    const content = extractTextContent(result?.choices?.[0]?.message?.content);
+    const choice = result?.choices?.[0];
+    const content = extractTextContent(choice?.message?.content);
     if (!content) {
+        if (choice?.finish_reason === 'length') {
+            throw new AiServiceError(
+                'The AI provider used its response limit before generating an answer. Try asking a shorter question.',
+                502
+            );
+        }
         throw new AiServiceError('The AI provider response did not contain a reply.', 502);
     }
 

@@ -1,6 +1,10 @@
 import { apiClient } from '../api/client'
 
-export const askAssistant = async (message) => (await apiClient.post('/ai/chat', { message })).data.data
+const AI_REQUEST_TIMEOUT_MS = 35_000
+
+export const askAssistant = async (message) => (
+  await apiClient.post('/ai/chat', { message }, { timeout: AI_REQUEST_TIMEOUT_MS })
+).data.data
 export const getRecommendations = async (memberId) => (
   await apiClient.get(`/ai/recommendations/${memberId}`)
 ).data.data

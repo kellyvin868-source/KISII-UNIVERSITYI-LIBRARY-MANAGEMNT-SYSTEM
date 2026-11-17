@@ -65,6 +65,10 @@ test('AI routes validate inputs, return real catalog results, and answer library
             assert.equal(options.headers.Authorization, 'Bearer test-key-not-a-real-credential');
             const payload = JSON.parse(options.body);
             assert.equal(payload.model, 'nvidia/nemotron-3.5-lightning:free');
+            assert.deepEqual(payload.reasoning, { effort: 'low' });
+            if (providerCall === 1) {
+                assert.equal(payload.max_tokens, 1024);
+            }
             providerCall += 1;
             const content = providerCall === 1
                 ? JSON.stringify({ terms: ['East African history'] })
@@ -76,7 +80,10 @@ test('AI routes validate inputs, return real catalog results, and answer library
                 status: 200,
                 json: async () => ({
                     model: payload.model,
-                    choices: [{ message: { content } }]
+                    choices: [{
+                        message: { content },
+                        ...(providerCall === 4 ? { finish_reason: 'length' } : {})
+                    }]
                 })
             };
         };
@@ -108,6 +115,17 @@ test('AI routes validate inputs, return real catalog results, and answer library
         });
         assert.equal(emptyReply.status, 502);
         assert.equal(emptyReply.body.message, 'The AI provider response did not contain a reply.');
+
+        const truncatedReply = await request(server, {
+            method: 'POST',
+            path: '/v1/ai/chat',
+            body: { message: 'How do I renew a loan?' }
+        });
+        assert.equal(truncatedReply.status, 502);
+        assert.equal(
+            truncatedReply.body.message,
+            'The AI provider used its response limit before generating an answer. Try asking a shorter question.'
+        );
     } finally {
         global.fetch = originalFetch;
         Book.find = originalFind;
